@@ -13,17 +13,29 @@ You need Python 3.10 or higher.
 ```bash
 git clone https://github.com/YOUR_USERNAME/prism.git
 cd prism
-python -m venv .venv
-source .venv/bin/activate        # macOS / Linux
-.venv\Scripts\activate           # Windows
 ```
+
+**macOS / Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+**Windows** — use the `py` launcher (comes with the [python.org](https://www.python.org/downloads/) installer):
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1         # PowerShell
+# or
+.venv\Scripts\activate.bat         # Command Prompt
+```
+
+> **Note:** Make sure you are using Python from [python.org](https://www.python.org/downloads/), not MSYS2, Conda, or another distribution. Run `py --version` to confirm. Using a non-standard Python can cause the venv to use `bin/` instead of `Scripts/` and break these commands.
 
 ### 2. Generate the data
 
 ```bash
 pip install -r ml/requirements.txt
-cd ml
-python generate_data.py
+python ml/generate_data.py
 ```
 
 This creates two files in `data/`:
@@ -35,7 +47,7 @@ The script uses a fixed seed so the output is always identical.
 ### 3. Train the model
 
 ```bash
-python train.py
+python ml/train.py
 ```
 
 This trains a Random Forest on the training data, tests it, then runs it against all 1,000 listings to fill in estimated prices. It saves:
@@ -57,9 +69,8 @@ The 20% error comes from the way we generate the data which attempts to imitate 
 ### 4. Start the API
 
 ```bash
-cd ../backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+pip install -r backend/requirements.txt
+uvicorn app.main:app --reload --port 8000 --app-dir backend
 ```
 
 Once it says "Application startup complete", go to [http://localhost:8000/docs](http://localhost:8000/docs) to see all the endpoints and try them.

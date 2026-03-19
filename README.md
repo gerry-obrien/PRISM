@@ -181,3 +181,11 @@ Dockerfiles for each service, a `docker-compose.yml` to run everything with one 
 - **Model comparison dashboard** - Training multiple models (Linear Regression as a baseline, XGBoost as a contender) and letting users see how they compare, which would demonstrate the diminishing returns of model complexity when there's a hard noise ceiling.
 - **Investment simulator** - A calculator for the Jeanbrun device that shows projected amortisation, rental yield, and tax impact over the 9-year commitment period based on a specific property and the user's tax bracket.
 - **Neighbourhood insights** - Enriching each arrondissement with data like average rental yield, metro station density, school ratings, and crime stats.
+-- **Adding a MLFLOW pipeline** - Create a MLFLOW server -- ADD the code needed to access the server (env variable to use)
+-- **Add a prefect pipeline** - Workflow and re-training -- different models ? new data ?
+
+-- **Add Weight and biases pipeline** DO a connector maybe instead of the MLFLOW ?
+
+-- **Add a cloud solution for the API**
+
+-- **Adding fresh data** (additional training data) using an appending funciton

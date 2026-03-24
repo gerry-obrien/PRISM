@@ -153,40 +153,60 @@ curl "http://localhost:8000/api/listings?arrondissement=18&valuation=Undervalued
 
 ### The Front-End
 
+In order to launch the front-end (Streamlit), you first need to start the API with Uvicorn. Then, from your terminal at the root of the repository, run:
+
+```bash
+streamlit run frontend/app.py
+```
+
+### How the Front-End works ?
+
+It uses synthetically created data stored in the data folder of the repository, and it pulls from functions in the data.py and components.py files located in the frontend folder.
+
+It presents a simple Streamlit user interface for a prospective home buyer. With the sidebar on the left, the user can modify the attributes of the property according to their preferences. After submitting the specifications, the displayed dataframe is instantly filtered to reflect the selected attributes.
+
+This version of the interface also includes a simple map that uses the longitude and latitude of the properties to display the locations of the filtered results.
+
 
 ## What's next
 
 This is Phase 1. Here's what's coming and some ideas we're exploring.
 
-### Phase 2 - Frontend
+### Phase 2 - Continuous integration and development (CI/CD) and deployment
 
-A React app with a Leaflet map showing all 1,000 listings as colour-coded pins (green for undervalued, red for overvalued, yellow for fair). Clicking a pin opens a listing card with the DPE gauge, asking price vs estimated price, and property details. Filters for arrondissement, price range, number of rooms, DPE rating, and valuation status.
+- **Re-training on new data** - The idea is to develop a retraining method that mimics real-life situations where additional data becomes available over time. We want to be able to append new synthetic data representing more recent listings. Then, the model should be retrained and its performance compared to the previous version.
 
-### Phase 3 - User accounts and buyer quiz
+This implementation requires several steps to ensure a continuous development pipeline:
 
-User registration and login (SQLite). After signing in, users complete a multi-step quiz about their buyer profile - are they a first-time buyer, what's their household income, are they buying to live in or to rent out, how much do they care about energy efficiency. Based on the answers, the app tells them:
+-- **Add Weight and Biases pipeline** Create a W&B connection to our training in other to monitor the training performances of the models
 
-- **PTZ eligibility** - Paris is zone A bis. The prêt à taux zéro is for first-time buyers below certain income thresholds, and can finance up to 50% of the purchase for the most modest households.
-- **Jeanbrun device** - Uses fiscal amortisation instead of tax credits, no geographic zoning, but requires a 9-year rental commitment with capped rents. Relevant for anyone buying as an investment.
+-- **Adding a MLFLOW pipeline** - Create a MLFLOW server to host the "in production" model and keep the other in archive.
+
+-- **Add an orchestration pipeline** - Create a Prefect or Airflow pipeline to handle the workflow or retraining and model in production through different conditions.
+
+- **Cloud implementation** We would like to add cloud features such as hosting our database on BigQuery or AWS (S3 if images are required). Finally, we plan to dockerize the codebase and deploy it to the cloud.
+
+- **MCP server** - Wrap the API as MCP tools so an AI assistant can conversationally search listings, estimate prices, and check regulatory eligibility on behalf of a user.
+
+- **Investment simulator** - A calculator for the Jeanbrun device that shows projected amortization, rental yield, and tax impact over the 9-year commitment period based on a specific property and the user's tax bracket.
+
+- **Neighbourhood insights** - Enrich each arrondissement with data such as average rental yield, metro station density, school ratings, and crime statistics.
+
+### Phase 3 - Frontend
+
+We would like to improve our front-end, either by continuing to use Streamlit while adding new features, or by switching to a JavaScript-based solution (e.g., Vibecode) and providing the full prompt used.
+
+Addtional features would be:
+
+- **User Registration** authentification and possibillity to save previous searches from the user.
+
+- **PTZ eligibility and additional law oriented features** such as Financing help presentation in the UI for potential first time buyer, or presentation of fiscal amortization plan in case it can finance the loan to buy (Jeanbrun device).
+
 - **DPE rental restrictions** - G-rated properties can't be rented out since 2025, F-rated banned from 2028, E-rated from 2034. The 2026 reform also changed the electricity conversion coefficient, reclassifying ~850,000 properties. Critical info for buy-to-let buyers.
 
-Users can also save favourite listings and come back to them later.
+- **Adding fake visuals for each properties**
 
-### Phase 4 - Containerisation and deployment
+- **LLM as an assistant** - Add a LLM/Chatbot in the UI to help the customer navigates through the app and ask how to use it or opinion on some properties.
 
-Dockerfiles for each service, a `docker-compose.yml` to run everything with one command, and Kubernetes manifests for production deployment. Includes a CronJob for periodic model retraining.
 
-### Other potential ideas we're considering
-
-- **MCP server** - Wrapping the API as MCP tools so an AI assistant could conversationally search listings, estimate prices, and check regulatory eligibility on behalf of a user.
-- **Model comparison dashboard** - Training multiple models (Linear Regression as a baseline, XGBoost as a contender) and letting users see how they compare, which would demonstrate the diminishing returns of model complexity when there's a hard noise ceiling.
-- **Investment simulator** - A calculator for the Jeanbrun device that shows projected amortisation, rental yield, and tax impact over the 9-year commitment period based on a specific property and the user's tax bracket.
-- **Neighbourhood insights** - Enriching each arrondissement with data like average rental yield, metro station density, school ratings, and crime stats.
--- **Adding a MLFLOW pipeline** - Create a MLFLOW server -- ADD the code needed to access the server (env variable to use)
--- **Add a prefect pipeline** - Workflow and re-training -- different models ? new data ?
-
--- **Add Weight and biases pipeline** DO a connector maybe instead of the MLFLOW ?
-
--- **Add a cloud solution for the API**
-
--- **Adding fresh data** (additional training data) using an appending funciton
+All these ideas might not be implemented in the end but are what we think the project should look like.

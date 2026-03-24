@@ -1,6 +1,6 @@
 # PRISM - Paris Real estate Intelligent Smart Market
 
-An app that helps people buying property in Paris figure out if they're getting a good deal. A machine learning model estimates fair prices for 1,000 properties currently on the market, then flags which ones are overpriced and which are bargains.
+PRISM is an app that helps people buying property in Paris figure out if they're getting a good deal. A machine learning model estimates fair prices for 1,000 properties currently on the market, then flags which ones are overpriced and which are bargains. The application comes with a UI (Streamlit for now) to help the customer select their criteria for buying a property. Moreover, the synthetic data on which the model is trained can be used as continuous development. Moreover, the app allows the customer to price its own appartment based on different features, this helps to increase the database of properties listed and for later development we want to provide investment opportunity based on the listed property.
 
 ---
 
@@ -28,8 +28,6 @@ py -m venv .venv
 # or
 .venv\Scripts\activate.bat         # Command Prompt
 ```
-
-> **Note:** Make sure you are using Python from [python.org](https://www.python.org/downloads/), not MSYS2, Conda, or another distribution. Run `py --version` to confirm. Using a non-standard Python can cause the venv to use `bin/` instead of `Scripts/` and break these commands.
 
 ### 2. Generate the data
 
@@ -152,6 +150,9 @@ curl -X POST http://localhost:8000/api/predict \
 ```bash
 curl "http://localhost:8000/api/listings?arrondissement=18&valuation=Undervalued&sort_by=price_delta_pct&sort_order=asc"
 ```
+
+### The Front-End
+
 
 ## What's next
 

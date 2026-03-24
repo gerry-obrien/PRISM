@@ -10,6 +10,8 @@ router = APIRouter()
 # CRITICAL: /listings/stats/summary must be registered before /listings/{listing_id}
 
 @router.get("/listings/stats/summary")
+
+### Provide a summary for a property selected
 def get_stats_summary():
     df = get_listings()
     valuation_counts = df["valuation"].value_counts().to_dict()
@@ -26,6 +28,7 @@ def get_stats_summary():
 
 
 @router.get("/listings/{listing_id}")
+### Provide the feature related to a selected Listing ID
 def get_listing(listing_id: str):
     df = get_listings()
     row = df[df["listing_id"] == listing_id]
@@ -35,6 +38,8 @@ def get_listing(listing_id: str):
 
 
 @router.get("/listings")
+# Filtering for the API; give the possibility for a customer to choose
+# the desired parameter for the property he wants to invest int
 def list_listings(
     arrondissement: Optional[int] = Query(None),
     min_price: Optional[float] = Query(None),

@@ -7,6 +7,7 @@ router = APIRouter()
 
 
 @router.post("/predict", response_model=PredictResponse)
+# API prediction on a potential property belonging to a customer --> Help build a database of property
 def predict(request: PredictRequest):
     data = request.model_dump()
     estimated = model_predict(data)

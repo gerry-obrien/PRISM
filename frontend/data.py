@@ -1,11 +1,10 @@
-#placeholder
 import pandas as pd
 import streamlit as st
 from pathlib import Path
 
-#function that loads data from generated listings.csv file and cleans data
+
 def load_data():
-    #loading data
+    """Load listings from CSV and cast numeric columns."""
     BASE_DIR = Path(__file__).resolve().parent
     csv_path = BASE_DIR.parent / "data" / "listings.csv"
     df = pd.read_csv(csv_path)

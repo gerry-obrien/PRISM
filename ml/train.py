@@ -13,6 +13,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import joblib
 import wandb
+from datetime import datetime
+from generate_data import generate_dataset
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -185,15 +187,86 @@ def train():
     return pipeline, metrics
 
 
-#def retrain():
+def retrain(months = 1):
 
+    df = load_training_data()
+    new_data = generate_dataset(months * 10000)
+    now = datetime.now()
 
+    current_time = now.strftime("%H:%M:%S")
 
+    final_df = pd.concat([df, new_data],axis = 0)
 
+    config = {
+        "test_size": 0.2,
+        "random_state": 42,
+        "model_type": "RandomForest"
+    }
 
+    with wandb.init(project="mlops-simple-project", config=config, job_type="retrain"):
+        config = wandb.config
 
+        feature_cols = NUMERIC_FEATURES + ORDINAL_DPE + ORDINAL_CONDITION + CATEGORICAL_FEATURES
+        X = final_df[feature_cols]
+        y = final_df[TARGET]
 
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=config["test_size"],
+            random_state=config["random_state"]
+        )
 
+        print(f"Train size: {len(X_train):,}  |  Test size: {len(X_test):,}")
+
+        pipeline = build_pipeline()
+        print("Re-Training Random Forest ...")
+        pipeline.fit(X_train, y_train)
+
+        y_pred = pipeline.predict(X_test)
+
+        r2 = float(r2_score(y_test, y_pred))
+        mae = float(mean_absolute_error(y_test, y_pred))
+        mape = float(compute_mape(y_test, y_pred))
+
+        print("\n--- Model Metrics ---")
+        print(f"  R²   : {r2:.4f}")
+        print(f"  MAE  : €{mae:,.0f}")
+        print(f"  MAPE : {mape:.2f}%")
+
+        metrics = {
+                    "r2": r2,
+                    "mae": mae,
+                    "mape": mape,
+                    "train_size": len(X_train),
+                    "test_size": len(X_test),
+                    "months": months,
+                    "new_rows": len(new_data),
+                    "total_rows": len(final_df)}
+
+        wandb.log(metrics)
+
+        # Save model before logging artifact
+        joblib.dump(pipeline, MODEL_PATH)
+        print(f"\nModel saved to {MODEL_PATH}")
+
+        log_model_artifact(MODEL_PATH)
+
+        # Save metrics locally
+        with open(METRICS_PATH, "w") as f:
+            json.dump(metrics, f, indent=2)
+        print(f"Metrics saved to {METRICS_PATH}")
+
+        # Optional plots
+        save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+
+    # Predict listings
+    predict_listings(pipeline) #### Should It be done during the training ?
+
+    DATA_DIR = os.path.join(os.path.dirname(SCRIPT_DIR), "data")
+
+    final_df.to_csv(os.path.join(DATA_DIR, f"training_data_{current_time}.csv"), index=False)
+
+    return pipeline, metrics
 
 
 # ---------------------------------------------------------------------------
@@ -311,8 +384,20 @@ def predict_listings(pipeline):
         print(f"  {label}: {count}")
 
 
+def model_exists():
+    return os.path.exists(MODEL_PATH)
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    train()
+
+    os.makedirs(ARTIFACTS_DIR, exist_ok=True)
+
+    if model_exists():
+        print("Existing model found in artifacts -> launching retraining...")
+        retrain()
+    else:
+        print("No existing model found -> launching training...")
+        train()

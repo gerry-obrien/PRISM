@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import joblib
+import wandb
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
@@ -105,6 +106,12 @@ def compute_mape(y_true, y_pred) -> float:
     mask = y_true != 0
     return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / y_true[mask])) * 100)
 
+def log_model_artifact(model_path, artifact_name="trained-model"):
+    artifact = wandb.Artifact(artifact_name, type="model")
+    artifact.add_file(model_path)
+    wandb.log_artifact(artifact)
+
+    ### To be moved to a registry part
 
 # ---------------------------------------------------------------------------
 # Training
@@ -112,48 +119,81 @@ def compute_mape(y_true, y_pred) -> float:
 def train():
     df = load_training_data()
 
-    feature_cols = NUMERIC_FEATURES + ORDINAL_DPE + ORDINAL_CONDITION + CATEGORICAL_FEATURES
-    X = df[feature_cols]
-    y = df[TARGET]
+    config = {
+        "test_size": 0.2,
+        "random_state": 42,
+        "model_type": "RandomForest"
+    }
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
+    with wandb.init(project="mlops-simple-project", config=config):
+        config = wandb.config
 
-    print(f"Train size: {len(X_train):,}  |  Test size: {len(X_test):,}")
+        feature_cols = NUMERIC_FEATURES + ORDINAL_DPE + ORDINAL_CONDITION + CATEGORICAL_FEATURES
+        X = df[feature_cols]
+        y = df[TARGET]
 
-    pipeline = build_pipeline()
-    print("Training Random Forest ...")
-    pipeline.fit(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=config["test_size"],
+            random_state=config["random_state"]
+        )
 
-    y_pred = pipeline.predict(X_test)
+        print(f"Train size: {len(X_train):,}  |  Test size: {len(X_test):,}")
 
-    r2 = float(r2_score(y_test, y_pred))
-    mae = float(mean_absolute_error(y_test, y_pred))
-    mape = compute_mape(y_test, y_pred)
+        pipeline = build_pipeline()
+        print("Training Random Forest ...")
+        pipeline.fit(X_train, y_train)
 
-    print("\n--- Model Metrics ---")
-    print(f"  R²   : {r2:.4f}")
-    print(f"  MAE  : €{mae:,.0f}")
-    print(f"  MAPE : {mape:.2f}%")
+        y_pred = pipeline.predict(X_test)
 
-    # Save model
-    joblib.dump(pipeline, MODEL_PATH)
-    print(f"\nModel saved to {MODEL_PATH}")
+        r2 = float(r2_score(y_test, y_pred))
+        mae = float(mean_absolute_error(y_test, y_pred))
+        mape = float(compute_mape(y_test, y_pred))
 
-    # Save metrics
-    metrics = {"r2": r2, "mae": mae, "mape": mape}
-    with open(METRICS_PATH, "w") as f:
-        json.dump(metrics, f, indent=2)
-    print(f"Metrics saved to {METRICS_PATH}")
+        print("\n--- Model Metrics ---")
+        print(f"  R²   : {r2:.4f}")
+        print(f"  MAE  : €{mae:,.0f}")
+        print(f"  MAPE : {mape:.2f}%")
 
-    # Plots
-    save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+        metrics = {
+            "r2": r2,
+            "mae": mae,
+            "mape": mape,
+            "train_size": len(X_train),
+            "test_size": len(X_test)
+        }
+
+        wandb.log(metrics)
+
+        # Save model before logging artifact
+        joblib.dump(pipeline, MODEL_PATH)
+        print(f"\nModel saved to {MODEL_PATH}")
+
+        log_model_artifact(MODEL_PATH)
+
+        # Save metrics locally
+        with open(METRICS_PATH, "w") as f:
+            json.dump(metrics, f, indent=2)
+        print(f"Metrics saved to {METRICS_PATH}")
+
+        # Optional plots
+        save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
 
     # Predict listings
-    predict_listings(pipeline)
+    predict_listings(pipeline) #### Should It be done during the training ?
 
     return pipeline, metrics
+
+
+#def retrain():
+
+
+
+
+
+
+
+
 
 
 # ---------------------------------------------------------------------------

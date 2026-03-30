@@ -99,10 +99,12 @@ Once it says "Application startup complete", go to [http://localhost:8000/docs](
 prism/
 ├── data/               # Generated CSVs (gitignored - reproducible from scripts)
 ├── ml/
-│   ├── generate_data.py    # Creates the synthetic datasets
-│   ├── train.py            # Trains the model, evaluates, predicts listings
-│   ├── artifacts/          # Saved model + metrics (gitignored)
-│   └── plots/              # Evaluation charts (gitignored)
+│   ├── generate_data.py        # Creates the synthetic datasets
+│   ├── train.py                # Trains the model, evaluates, predicts listings
+│   ├── artifacts/              # Saved model + metrics (gitignored)
+│   ├── plots/                  # Evaluation charts (gitignored)
+│   └── mlflow-artifacts/       # MLflow artifact store (gitignored)
+├── mlruns/             # MLflow run metadata (gitignored - created by mlflow server)
 └── backend/
     └── app/
         ├── main.py         # FastAPI entry point

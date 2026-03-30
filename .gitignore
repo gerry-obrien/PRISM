@@ -8,6 +8,8 @@ data/*.csv
 # ----- ML artifacts (reproducible via ml/train.py) -----
 ml/artifacts/
 ml/plots/
+mlruns/
+ml/mlflow-artifacts/
 
 # ----- Python -----
 __pycache__/

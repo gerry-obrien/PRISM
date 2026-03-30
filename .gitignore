@@ -10,6 +10,7 @@ ml/artifacts/
 ml/plots/
 mlruns/
 ml/mlflow-artifacts/
+wandb/
 
 # ----- Python -----
 __pycache__/

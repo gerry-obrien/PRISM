@@ -13,6 +13,8 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import joblib
 import wandb
+import mlflow
+import mlflow.sklearn
 from datetime import datetime
 from generate_data import generate_dataset
 
@@ -41,6 +43,9 @@ METRICS_PATH = os.path.join(ARTIFACTS_DIR, "metrics.json")
 
 os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
+
+mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"))
+mlflow.set_experiment("prism-real-estate")
 
 # ---------------------------------------------------------------------------
 # Feature definitions
@@ -167,6 +172,16 @@ def train():
 
         wandb.log(metrics)
 
+        with mlflow.start_run():
+            mlflow.log_params({
+                "test_size": config["test_size"],
+                "random_state": config["random_state"],
+                "model_type": config["model_type"],
+                "n_estimators": 100,
+            })
+            mlflow.log_metrics(metrics)
+            mlflow.sklearn.log_model(pipeline, "model")
+
         # Save model before logging artifact
         joblib.dump(pipeline, MODEL_PATH)
         print(f"\nModel saved to {MODEL_PATH}")
@@ -244,6 +259,17 @@ def retrain(months = 1):
                     "total_rows": len(final_df)}
 
         wandb.log(metrics)
+
+        with mlflow.start_run():
+            mlflow.log_params({
+                "test_size": config["test_size"],
+                "random_state": config["random_state"],
+                "model_type": config["model_type"],
+                "n_estimators": 100,
+                "months": months,
+            })
+            mlflow.log_metrics(metrics)
+            mlflow.sklearn.log_model(pipeline, "model")
 
         # Save model before logging artifact
         joblib.dump(pipeline, MODEL_PATH)

@@ -42,7 +42,25 @@ This creates two files in `data/`:
 
 The script uses a fixed seed so the output is always identical.
 
-### 3. Train the model
+### 3. Start the MLflow server
+
+MLflow tracks every training run - parameters, metrics, and the model artifact. Start the server before running `train.py` so runs are logged correctly.
+
+**macOS / Linux:**
+```bash
+mlflow server --backend-store-uri ./mlruns --default-artifact-root ./ml/mlflow-artifacts --host 127.0.0.1 --port 5000 --workers 1
+```
+
+**Windows (PowerShell):**
+```powershell
+mlflow server --backend-store-uri ./mlruns --default-artifact-root ./ml/mlflow-artifacts --host 127.0.0.1 --port 5000 --workers 1
+```
+
+Leave this terminal open. The UI is available at [http://127.0.0.1:5000](http://127.0.0.1:5000).
+
+To point at a different MLflow server (e.g. a shared team instance), set the `MLFLOW_TRACKING_URI` environment variable before running `train.py` - no code changes needed.
+
+### 4. Train the model
 
 ```bash
 python ml/train.py
@@ -64,7 +82,7 @@ You'll see something like this in the terminal:
 
 The 20% error comes from the way we generate the data which attempts to imitate random variance in housing market prices.
 
-### 4. Start the API
+### 5. Start the API
 
 ```bash
 pip install -r backend/requirements.txt
@@ -81,10 +99,12 @@ Once it says "Application startup complete", go to [http://localhost:8000/docs](
 prism/
 ├── data/               # Generated CSVs (gitignored - reproducible from scripts)
 ├── ml/
-│   ├── generate_data.py    # Creates the synthetic datasets
-│   ├── train.py            # Trains the model, evaluates, predicts listings
-│   ├── artifacts/          # Saved model + metrics (gitignored)
-│   └── plots/              # Evaluation charts (gitignored)
+│   ├── generate_data.py        # Creates the synthetic datasets
+│   ├── train.py                # Trains the model, evaluates, predicts listings
+│   ├── artifacts/              # Saved model + metrics (gitignored)
+│   ├── plots/                  # Evaluation charts (gitignored)
+│   └── mlflow-artifacts/       # MLflow artifact store (gitignored)
+├── mlruns/             # MLflow run metadata (gitignored - created by mlflow server)
 └── backend/
     └── app/
         ├── main.py         # FastAPI entry point
@@ -180,7 +200,7 @@ This implementation requires several steps to ensure a continuous development pi
 
 -- **Add Weight and Biases pipeline** Create a W&B connection to our training in other to monitor the training performances of the models
 
--- **Adding a MLFLOW pipeline** - Create a MLFLOW server to host the "in production" model and keep the other in archive.
+-- **Adding a MLFLOW pipeline** - Local MLflow server integrated. Each training and retraining run logs parameters, metrics, and the model artifact. UI available at http://127.0.0.1:5000. Model registry and shared server planned for Phase 2.
 
 -- **Add an orchestration pipeline** - Create a Prefect or Airflow pipeline to handle the workflow or retraining and model in production through different conditions.
 

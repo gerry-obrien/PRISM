@@ -91,6 +91,18 @@ uvicorn app.main:app --reload --port 8000 --app-dir backend
 
 Once it says "Application startup complete", go to [http://localhost:8000/docs](http://localhost:8000/docs) to see all the endpoints and try them.
 
+### 6. Install Ollama (for the Investment Advisor chatbot)
+
+The Investment Advisor tab in the frontend uses a local LLM through [Ollama](https://ollama.com). Download and install Ollama from their website, then pull a model:
+
+```bash
+ollama pull llama3.2:1b
+```
+
+On Windows, Ollama runs as a background service after installation so you don't need to start it manually. On macOS/Linux you may need to run `ollama serve` in a separate terminal.
+
+The rest of the app (Property Explorer, API, predictions) works fine without Ollama - only the chatbot tab requires it.
+
 ---
 
 ## Project structure
@@ -105,12 +117,16 @@ prism/
 │   ├── plots/                  # Evaluation charts (gitignored)
 │   └── mlflow-artifacts/       # MLflow artifact store (gitignored)
 ├── mlruns/             # MLflow run metadata (gitignored - created by mlflow server)
-└── backend/
-    └── app/
-        ├── main.py         # FastAPI entry point
-        ├── models/         # Request/response schemas
-        ├── routers/        # API endpoints
-        └── services/       # Model loading + inference
+├── backend/
+│   └── app/
+│       ├── main.py         # FastAPI entry point
+│       ├── models/         # Request/response schemas
+│       ├── routers/        # API endpoints (listings, predict, chatbot)
+│       └── services/       # Model loading + inference + chatbot logic
+└── frontend/
+    ├── app.py          # Streamlit UI (Property Explorer + Investment Advisor)
+    ├── data.py         # Data loading
+    └── components.py   # Sidebar filters
 ```
 ---
 
@@ -141,6 +157,17 @@ Main endpoints:
 | `GET` | `/api/listings/stats/summary` | Aggregate stats across all listings |
 | `POST` | `/api/predict` | Send property features, get a price estimate |
 | `GET` | `/api/predict/metrics` | How well the model performs |
+| `POST` | `/api/chat` | Send a message to the investment advisor chatbot |
+
+### The Investment Advisor (backend/app/services/chatbot.py)
+
+A conversational chatbot that helps users explore the listings data and think through investment decisions. It connects to a local LLM running through Ollama and feeds it a summary of the market data - averages per arrondissement, valuation breakdowns, top deals so it can answer questions without seeing the full dataset.
+
+The chatbot can answer things like which arrondissements have the most undervalued properties, what a reasonable rental yield looks like for a given area, or roughly when you'd break even on an investment. It uses simple assumptions for rental yield (~3.5% gross in Paris), annual price growth (~1.5%), and typical charges (~25% of rent) to give ballpark investment estimates.
+
+The flow is: user types in Streamlit → Streamlit calls `POST /api/chat` → FastAPI passes the message to the chatbot service → the service builds a data summary from the listings, constructs a system prompt, and sends everything to Ollama → the LLM response comes back through the chain.
+
+We went with Ollama + a local model (llama3.2:1b) to keep it free and dependency-light: no API keys, no cloud costs. The tradeoff is that whoever runs the app needs Ollama installed locally.
 
 ---
 
@@ -171,6 +198,17 @@ curl -X POST http://localhost:8000/api/predict \
 curl "http://localhost:8000/api/listings?arrondissement=18&valuation=Undervalued&sort_by=price_delta_pct&sort_order=asc"
 ```
 
+**Ask the investment advisor:**
+
+```bash
+curl -X POST http://localhost:8000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "What are the best deals in the 11th arrondissement?",
+    "history": []
+  }'
+```
+
 ### The Front-End
 
 In order to launch the front-end (Streamlit), you first need to start the API with Uvicorn. Then, from your terminal at the root of the repository, run:
@@ -186,6 +224,10 @@ It uses synthetically created data stored in the data folder of the repository, 
 It presents a simple Streamlit user interface for a prospective home buyer. With the sidebar on the left, the user can modify the attributes of the property according to their preferences. After submitting the specifications, the displayed dataframe is instantly filtered to reflect the selected attributes.
 
 This version of the interface also includes a simple map that uses the longitude and latitude of the properties to display the locations of the filtered results.
+
+The frontend has two tabs:
+- **Property Explorer** - the filtering interface with the sidebar and map described above.
+- **Investment Advisor** - a chat interface where users can ask questions about the market data, find undervalued listings, or get rough investment return estimates. Conversation history is preserved within the session.
 
 
 ## What's next

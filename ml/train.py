@@ -14,7 +14,9 @@ import matplotlib.pyplot as plt
 import joblib
 import wandb
 import mlflow
-import mlflow.sklearn
+from dotenv import load_dotenv
+
+load_dotenv()
 from datetime import datetime
 from generate_data import generate_dataset
 
@@ -101,7 +103,7 @@ def build_pipeline() -> Pipeline:
 
     pipeline = Pipeline(steps=[
         ("preprocessor", preprocessor),
-        ("model", RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)),
+        ("model", RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42, n_jobs=-1)),
     ])
 
     return pipeline
@@ -172,20 +174,29 @@ def train():
 
         wandb.log(metrics)
 
-        with mlflow.start_run():
+        with mlflow.start_run() as run:
             mlflow.log_params({
                 "test_size": config["test_size"],
                 "random_state": config["random_state"],
                 "model_type": config["model_type"],
                 "n_estimators": 100,
+                "max_depth": 10,
             })
             mlflow.log_metrics(metrics)
-            mlflow.sklearn.log_model(pipeline, "model")
 
-        # Save model before logging artifact
-        joblib.dump(pipeline, MODEL_PATH)
-        print(f"\nModel saved to {MODEL_PATH}")
+            # Save model locally (used by the API)
+            joblib.dump(pipeline, MODEL_PATH, compress=3)
+            print(f"\nModel saved to {MODEL_PATH}")
+            # Note: model upload to MLflow is skipped — the Le Wagon shared server
+            # has a small upload size limit (~1-2 MB) that rejects the model file.
+            # To enable this, ask the server admin to increase client_max_body_size
+            # in the nginx config. The model is saved locally and via W&B instead.
 
+            # Save plots and log to MLflow
+            save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+            mlflow.log_artifacts(PLOTS_DIR, artifact_path="plots")
+
+        # W&B model artifact (separate from MLflow)
         log_model_artifact(MODEL_PATH)
 
         # Save metrics locally
@@ -193,8 +204,22 @@ def train():
             json.dump(metrics, f, indent=2)
         print(f"Metrics saved to {METRICS_PATH}")
 
-        # Optional plots
-        save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+        # Register model in MLflow Model Registry using lower-level client.
+        # mlflow.register_model() was tried first but triggers a follow-up call to
+        # /api/2.0/mlflow/logged-models/search which returns 404 on the Le Wagon
+        # server (older MLflow version). MlflowClient.create_model_version() uses
+        # the older /model-versions/create endpoint which the server supports.
+        # Debugged with Claude Code.
+        try:
+            client = mlflow.tracking.MlflowClient()
+            version = client.create_model_version(
+                name="prism-model",
+                source=f"runs:/{run.info.run_id}",
+                run_id=run.info.run_id
+            )
+            print(f"Model registered as 'prism-model' version {version.version}")
+        except Exception as e:
+            print(f"Model registry error: {e}")
 
     # Predict listings
     predict_listings(pipeline) #### Should It be done during the training ?
@@ -208,7 +233,7 @@ def retrain(months = 1):
     new_data = generate_dataset(months * 10000)
     now = datetime.now()
 
-    current_time = now.strftime("%H:%M:%S")
+    current_time = now.strftime("%H-%M-%S")
 
     final_df = pd.concat([df, new_data],axis = 0)
 
@@ -260,21 +285,30 @@ def retrain(months = 1):
 
         wandb.log(metrics)
 
-        with mlflow.start_run():
+        with mlflow.start_run() as run:
             mlflow.log_params({
                 "test_size": config["test_size"],
                 "random_state": config["random_state"],
                 "model_type": config["model_type"],
                 "n_estimators": 100,
+                "max_depth": 10,
                 "months": months,
             })
             mlflow.log_metrics(metrics)
-            mlflow.sklearn.log_model(pipeline, "model")
 
-        # Save model before logging artifact
-        joblib.dump(pipeline, MODEL_PATH)
-        print(f"\nModel saved to {MODEL_PATH}")
+            # Save model locally (used by the API)
+            joblib.dump(pipeline, MODEL_PATH, compress=3)
+            print(f"\nModel saved to {MODEL_PATH}")
+            # Note: model upload to MLflow is skipped — the Le Wagon shared server
+            # has a small upload size limit (~1-2 MB) that rejects the model file.
+            # To enable this, ask the server admin to increase client_max_body_size
+            # in the nginx config. The model is saved locally and via W&B instead.
 
+            # Save plots and log to MLflow
+            save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+            mlflow.log_artifacts(PLOTS_DIR, artifact_path="plots")
+
+        # W&B model artifact (separate from MLflow)
         log_model_artifact(MODEL_PATH)
 
         # Save metrics locally
@@ -282,8 +316,22 @@ def retrain(months = 1):
             json.dump(metrics, f, indent=2)
         print(f"Metrics saved to {METRICS_PATH}")
 
-        # Optional plots
-        save_plots(pipeline, X_train, X_test, y_test, y_pred, feature_cols)
+        # Register model in MLflow Model Registry using lower-level client.
+        # mlflow.register_model() was tried first but triggers a follow-up call to
+        # /api/2.0/mlflow/logged-models/search which returns 404 on the Le Wagon
+        # server (older MLflow version). MlflowClient.create_model_version() uses
+        # the older /model-versions/create endpoint which the server supports.
+        # Debugged with Claude Code.
+        try:
+            client = mlflow.tracking.MlflowClient()
+            version = client.create_model_version(
+                name="prism-model",
+                source=f"runs:/{run.info.run_id}",
+                run_id=run.info.run_id
+            )
+            print(f"Model registered as 'prism-model' version {version.version}")
+        except Exception as e:
+            print(f"Model registry error: {e}")
 
     # Predict listings
     predict_listings(pipeline) #### Should It be done during the training ?

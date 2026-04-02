@@ -42,9 +42,27 @@ This creates two files in `data/`:
 
 The script uses a fixed seed so the output is always identical.
 
-### 3. Start the MLflow server
+### 3. Configure MLflow
 
-MLflow tracks every training run - parameters, metrics, and the model artifact. Start the server before running `train.py` so runs are logged correctly.
+MLflow tracks every training run — parameters, metrics, and the model artifact.
+
+Copy the example environment file:
+
+**macOS / Linux:**
+```bash
+cp .env.example .env
+```
+
+**Windows (PowerShell):**
+```powershell
+Copy-Item .env.example .env
+```
+
+Open `.env` and set your tracking server. The shared team server is already set as the default — you should not need to change anything.
+
+**Running a local server instead (optional):**
+
+If you prefer not to use the shared server, update `.env` to `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` and start a local server in a separate terminal:
 
 **macOS / Linux:**
 ```bash
@@ -56,9 +74,7 @@ mlflow server --backend-store-uri ./mlruns --default-artifact-root ./ml/mlflow-a
 mlflow server --backend-store-uri ./mlruns --default-artifact-root ./ml/mlflow-artifacts --host 127.0.0.1 --port 5000 --workers 1
 ```
 
-Leave this terminal open. The UI is available at [http://127.0.0.1:5000](http://127.0.0.1:5000).
-
-To point at a different MLflow server (e.g. a shared team instance), set the `MLFLOW_TRACKING_URI` environment variable before running `train.py` - no code changes needed.
+The local UI is available at [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
 ### 4. Train the model
 
@@ -66,11 +82,7 @@ To point at a different MLflow server (e.g. a shared team instance), set the `ML
 python ml/train.py
 ```
 
-This trains a Random Forest on the training data, tests it, then runs it against all 1,000 listings to fill in estimated prices. It saves:
-- `ml/artifacts/model.pkl` - the trained model
-- `ml/artifacts/metrics.json` - evaluation numbers
-- `ml/plots/` - charts showing how well the model performs
-- `data/listings_predicted.csv` - listings with estimated prices and over/undervalued labels
+This trains a Random Forest on the training data, tests it, then runs it against all 1,000 listings to fill in estimated prices.
 
 You'll see something like this in the terminal:
 
@@ -81,6 +93,42 @@ You'll see something like this in the terminal:
 ```
 
 The 20% error comes from the way we generate the data which attempts to imitate random variance in housing market prices.
+
+**Where outputs are saved:**
+
+| Output | Location | Purpose |
+|--------|----------|---------|
+| Trained model | `ml/artifacts/model.pkl` | Loaded by the API to serve predictions |
+| Evaluation metrics | `ml/artifacts/metrics.json` | Local copy of R², MAE, MAPE |
+| Evaluation plots | `ml/plots/` | Local copies of the 4 charts (gitignored) |
+| Listing predictions | `data/listings_predicted.csv` | Listings with estimated prices and valuation labels |
+
+**What gets logged to MLflow (`https://mlflow.lewagon.ai`):**
+
+| Item | Where to find it |
+|------|-----------------|
+| Run parameters (model type, test size, etc.) | Experiment → Run → Parameters |
+| Metrics (R², MAE, MAPE) | Experiment → Run → Metrics |
+| Evaluation plots (4 PNG charts) | Experiment → Run → Artifacts → plots/ |
+| Model registry entry | Models tab → prism-model |
+
+> **Note on model uploads and registry (debugged with Claude Code):**
+>
+> Two compatibility issues were discovered between the MLflow Python client (2.13+) and the Le Wagon shared server (older MLflow version):
+>
+> **1. Model file upload (`model.pkl`) is disabled.** The Le Wagon server returns HTTP 413 (Request Entity Too Large) when attempting to upload the model file, even after compressing it and reducing `max_depth` to bring the size to ~4.5 MB. The server has a small nginx `client_max_body_size` limit. To enable model uploads, the server admin needs to increase this limit. Until then, the model lives locally at `ml/artifacts/model.pkl` and is also stored via W&B.
+>
+> **2. Model registry uses the lower-level `MlflowClient.create_model_version()` instead of `mlflow.register_model()`.** The high-level `register_model()` call triggers a follow-up request to `/api/2.0/mlflow/logged-models/search` — a newer endpoint that doesn't exist on the Le Wagon server (returns 404). The lower-level `create_model_version()` uses the older `/model-versions/create` endpoint which the server supports. Each training or retraining run registers a new version under `prism-model` in the Models tab.
+
+**What gets logged to W&B:**
+
+Metrics are always logged to W&B. To also sync the model artifact and view results in the W&B cloud dashboard:
+
+1. Create an account at [wandb.ai](https://wandb.ai)
+2. Add your API key to `.env`: `WANDB_API_KEY=your_key_here`
+3. W&B will automatically sync on the next run
+
+Without an API key, W&B runs in offline mode and stores data locally in `wandb/`.
 
 ### 5. Start the API
 

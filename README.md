@@ -366,8 +366,13 @@ curl -X POST http://localhost:8000/api/chat \
 
 We had to make choices about what to focus on. Here's what we intentionally left out and the reasoning behind it:
 
-- **Prefect / Airflow orchestration** — We looked into adding a proper orchestration pipeline for retraining, but for a project of this scale it felt overkill. Our retraining flow is a single script that runs sequentially. Adding a DAG orchestrator would have added infrastructure complexity without real benefit given the simplicity of our pipeline.
-- **Full MLflow model serving** — As described in the Known Issues section, the Le Wagon shared MLflow server has size limits and API incompatibilities that prevented us from uploading model artifacts directly. We worked around it by storing the model locally and via W&B, and using the lower-level MLflow API for the registry. A production setup would need a properly configured MLflow server.
+- **Prefect / Airflow orchestration** — We looked into adding a proper orchestration pipeline for retraining (in the train.py), the retraining function is well implemented, however as discussed before we had issues with the MLFlow pipeline. Adding a DAG (such as Prefect) orchestrator would have added infrastructure complexity without real benefit given the simplicity of our pipeline even more because we are working with synthetic data.
+
+
+- **Full MLflow model serving** — As described in the Known Issues section, the Le Wagon shared MLflow server has size limits and API incompatibilities that prevented us from uploading model artifacts directly. We worked around it by storing the model locally and via W&B, and using the lower-level MLflow API for the registry. A production setup would need a properly configured MLflow server by ourself, however it was more oriented software engineering skills than MLOPS and it felt overkill in the end.
+
 - **Cloud storage (S3, BigQuery)** — We considered hosting data and apartment images on AWS S3 or BigQuery, but since we're working with synthetic data and no real images, it didn't make practical sense. The CSV files are generated deterministically from a script, so there's nothing to persist in the cloud.
+
 - **Interactive map** — The current Streamlit map is basic (just dots on a map using lat/long). A more interactive version with clustering, popups per listing, and neighbourhood overlays would have been nice, but Streamlit's map capabilities are limited and we preferred to focus on the ML pipeline and API rather than frontend polish.
+
 - **DPE rental restrictions** — G-rated properties can't be rented out since 2025, F-rated banned from 2028, E-rated from 2034. This is critical info for buy-to-let investors and would be a natural addition to the valuation logic, but we didn't have time to integrate the regulatory layer.

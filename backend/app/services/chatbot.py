@@ -3,13 +3,14 @@ Chatbot service — sends user questions to a local Ollama LLM
 along with a summary of the listings data so it can answer
 investment-related questions.
 """
-
+import os
 import requests
 import pandas as pd
 from app.services.listings import get_listings
 
 
-OLLAMA_URL = "http://localhost:11434/api/chat"
+OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
+
 MODEL_NAME = "llama3.2:1b"
 
 

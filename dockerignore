@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+.env
+
+# Artefacts later generated
+ml/artifacts/
+ml/plots/
+ml/mlflow-artifacts/
+mlruns/
+data/
+wandb/
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+docker-compose.yml
+*.md
+
+## Some were proposed by an LLM while trying to optimize the code. ex: DS-Store
